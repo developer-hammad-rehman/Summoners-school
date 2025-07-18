@@ -1,4 +1,4 @@
-from fastapi import HTTPException, Response ,status
+from fastapi import HTTPException, Response, status
 from bson import ObjectId
 from pymongo import ReturnDocument
 from ..exceptions.base_exceptions import NotFoundException
@@ -6,34 +6,33 @@ from ..db.db_connector import db
 from ..model.course_model import CourseModel, UpdateCourseModel
 
 
-
 class CourseService:
     def __init__(self):
-        self.course_collection  = db.get_collection("course")
+        self.course_collection = db.get_collection("course")
 
-    async def create_course(self,payload:CourseModel):
+    async def create_course(self, payload: CourseModel):
         new_course = await self.course_collection.insert_one(
-        payload.model_dump(by_alias=True, exclude=["id"])
-    )
+            payload.model_dump(by_alias=True, exclude=["id"])
+        )
         created_course = await self.course_collection.find_one(
-        {"_id": new_course.inserted_id}
+            {"_id": new_course.inserted_id}
         )
         return created_course
-    
+
     async def get_courses(self):
         courses = await self.course_collection.find().to_list(length=None)
         return courses
-    
-    async def get_course(self , course_id:str):
+
+    async def get_course(self, course_id: str):
         course = await self.course_collection.find_one({"_id": ObjectId(course_id)})
         if not course:
             raise NotFoundException("Course Not Found")
         return course
-    
-    async def update_course(self , course_id:str , payload : UpdateCourseModel):
+
+    async def update_course(self, course_id: str, payload: UpdateCourseModel):
         course = {
-        k: v for k, v in payload.model_dump(by_alias=True).items() if v is not None
-    }
+            k: v for k, v in payload.model_dump(by_alias=True).items() if v is not None
+        }
         if len(course) >= 1:
             update_result = await self.course_collection.find_one_and_update(
                 {"_id": ObjectId(course_id)},
@@ -48,12 +47,21 @@ class CourseService:
         if existing_course is not None:
             return existing_course
         raise HTTPException(status_code=404, detail=f"course {id} not found")
-    
-    async def delete_course(self,course_id: str):
-        delete_result = await self.course_collection.delete_one({"_id": ObjectId(course_id)})
+
+    async def delete_course(self, course_id: str):
+        delete_result = await self.course_collection.delete_one(
+            {"_id": ObjectId(course_id)}
+        )
 
         if delete_result.deleted_count == 1:
             return Response(status_code=status.HTTP_204_NO_CONTENT)
 
         raise NotFoundException(f"course {course_id} not found")
-            
+
+    async def search_by_name(self, name: str):
+        cursor = self.course_collection.find(
+            {"name": name},
+        ).collation({"locale": "en", "strength": 2})
+        courses = await cursor.to_list(length=None)
+        return courses
+

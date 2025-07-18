@@ -32,3 +32,6 @@ class CourseController:
     async def delete_course(course_id: str):
         isvalidate_id(course_id)
         return await CourseService().delete_course(course_id)
+    @staticmethod 
+    async def get_course_by_name(name:str):
+        return await CourseService().search_by_name(name)
