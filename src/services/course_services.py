@@ -1,7 +1,6 @@
 from fastapi import HTTPException, Response ,status
 from bson import ObjectId
 from pymongo import ReturnDocument
-
 from ..exceptions.base_exceptions import NotFoundException
 from ..db.db_connector import db
 from ..model.course_model import CourseModel, UpdateCourseModel
@@ -50,10 +49,7 @@ class CourseService:
             return existing_course
         raise HTTPException(status_code=404, detail=f"course {id} not found")
     
-    async def delete_student(self,course_id: str):
-        """
-        Remove a single student record from the database.
-        """
+    async def delete_course(self,course_id: str):
         delete_result = await self.course_collection.delete_one({"_id": ObjectId(course_id)})
 
         if delete_result.deleted_count == 1:
