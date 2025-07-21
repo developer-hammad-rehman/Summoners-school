@@ -1,9 +1,9 @@
 from fastapi import HTTPException, Response, status
 from bson import ObjectId
 from pymongo import ReturnDocument
-from ..exceptions.base_exceptions import NotFoundException
-from ..db.db_connector import db
-from ..model.course_model import CourseModel, UpdateCourseModel
+from .exceptions.base_exceptions import NotFoundException
+from .config.db_connector import db
+from .model.course_model import CourseModel, UpdateCourseModel
 
 
 class CourseService:

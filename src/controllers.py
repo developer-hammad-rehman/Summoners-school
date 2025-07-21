@@ -1,8 +1,8 @@
 from bson import ObjectId
-from ..exceptions.base_exceptions import BadRequest
-from ..utils.id_validator import isvalidate_id
-from ..model.course_model import CourseModel, UpdateCourseModel
-from ..services.course_services import CourseService
+from .exceptions.base_exceptions import BadRequest
+from .utils.id_validator import isvalidate_id
+from .model.course_model import CourseModel, UpdateCourseModel
+from .services import CourseService
 
 
 class CourseController:
