@@ -31,7 +31,6 @@ summoners-school/
 │   └── id_validator.py
 │
 ├── .env
-└── requirements.txt
 ```
 
 ---
