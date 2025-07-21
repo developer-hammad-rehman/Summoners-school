@@ -1,16 +1,46 @@
 ---
 
-# 📁 Project Folder Structure – Summoners School API
+# 📁 Project Structure: Summoners School API
 
-This FastAPI project is structured for scalability, clarity, and separation of concerns, following modern Python and backend development best practices.
+This FastAPI project follows a clean, modular architecture designed for scalability, maintainability, and developer productivity.
 
 ---
 
-## 🧾 Root Files
+## 🧾 Root Structure Overview
 
-### `main.py` — Application Entry Point
+```
+summoners-school/
+│
+├── main.py
+├── routes.py
+├── controllers.py
+├── services.py
+│
+├── config/
+│   ├── db_connector.py
+│   └── env_config.py
+│
+├── exceptions/
+│   ├── base_exceptions.py
+│   └── handler.py
+│
+├── model/
+│   └── course_model.py
+│
+├── utils/
+│   └── id_validator.py
+│
+├── .env
+└── requirements.txt
+```
 
-Initializes the FastAPI application, registers exception handlers, and includes all route modules.
+---
+
+## 📌 File/Folder Descriptions
+
+### 🔹 `main.py` – App Entry Point
+
+Initializes the FastAPI app, registers exception handlers, and includes all route modules.
 
 ```python
 from fastapi import FastAPI
@@ -25,9 +55,9 @@ app.include_router(router, prefix='/api')
 
 ---
 
-## 🔁 `routes.py` — API Routes
+### 🔹 `routes.py` – API Route Definitions
 
-Defines all the HTTP endpoints for interacting with the course resource.
+All HTTP endpoints related to course management.
 
 ```python
 from fastapi import APIRouter
@@ -46,51 +76,55 @@ router.add_api_route('/course/delete/{course_id}', CourseController.delete_cours
 
 ---
 
-## 🎮 `controllers.py` — Request Handlers
+### 🔹 `controllers.py` – Controller Layer
 
-Controls how requests are handled and delegates logic to the service layer.
+Handles incoming requests, performs input validation, and delegates logic to the service layer.
 
 ```python
 from bson import ObjectId
 from .exceptions.base_exceptions import BadRequest
 from .utils.id_validator import isvalidate_id
 from .model.course_model import CourseModel, UpdateCourseModel
-from .services import CourseService
+from .services import Service
 
-class CourseController:
+
+class Controller:
     @staticmethod
     async def create_course(course: CourseModel):
-        return await CourseService().create_course(course)
+        result = await Service().create_course(course)
+        return result
 
     @staticmethod
     async def get_courses():
-        return await CourseService().get_courses()
+        result = await Service().get_courses()
+        return result
 
     @staticmethod
     async def get_course(course_id: str):
         isvalidate_id(course_id)
-        return await CourseService().get_course(course_id)
+        result = await Service().get_course(course_id)
+        return result
 
     @staticmethod
     async def update_course(course_id: str, payload: UpdateCourseModel):
         isvalidate_id(course_id)
-        return await CourseService().update_course(course_id, payload)
+        result = await Service().update_course(course_id, payload)
+        return result
 
     @staticmethod
     async def delete_course(course_id: str):
         isvalidate_id(course_id)
-        return await CourseService().delete_course(course_id)
-
-    @staticmethod 
+        return await Service().delete_course(course_id)
+    @staticmethod
     async def get_course_by_name(name: str):
-        return await CourseService().search_by_name(name)
+        return await Service().search_by_name(name)
 ```
 
 ---
 
-## 🧠 `services.py` — Business Logic Layer
+### 🔹 `services.py` – Business Logic Layer
 
-Handles all application-specific logic and database interactions for courses.
+Interacts with the MongoDB collection and implements core business operations.
 
 ```python
 from fastapi import HTTPException, Response, status
@@ -100,7 +134,8 @@ from .exceptions.base_exceptions import NotFoundException
 from .config.db_connector import db
 from .model.course_model import CourseModel, UpdateCourseModel
 
-class CourseService:
+
+class Service:
     def __init__(self):
         self.course_collection = db.get_collection("course")
 
@@ -108,10 +143,14 @@ class CourseService:
         new_course = await self.course_collection.insert_one(
             payload.model_dump(by_alias=True, exclude=["id"])
         )
-        return await self.course_collection.find_one({"_id": new_course.inserted_id})
+        created_course = await self.course_collection.find_one(
+            {"_id": new_course.inserted_id}
+        )
+        return created_course
 
     async def get_courses(self):
-        return await self.course_collection.find().to_list(length=None)
+        courses = await self.course_collection.find().to_list(length=None)
+        return courses
 
     async def get_course(self, course_id: str):
         course = await self.course_collection.find_one({"_id": ObjectId(course_id)})
@@ -120,40 +159,128 @@ class CourseService:
         return course
 
     async def update_course(self, course_id: str, payload: UpdateCourseModel):
-        update_fields = {k: v for k, v in payload.model_dump(by_alias=True).items() if v is not None}
-        if update_fields:
-            updated_course = await self.course_collection.find_one_and_update(
+        course = {
+            k: v for k, v in payload.model_dump(by_alias=True).items() if v is not None
+        }
+        if len(course) >= 1:
+            update_result = await self.course_collection.find_one_and_update(
                 {"_id": ObjectId(course_id)},
-                {"$set": update_fields},
+                {"$set": course},
                 return_document=ReturnDocument.AFTER,
             )
-            if updated_course:
-                return updated_course
-            raise NotFoundException(f"Course {course_id} not found")
-        
-        existing_course = await self.course_collection.find_one({"_id": ObjectId(course_id)})
-        if existing_course:
+            if update_result is not None:
+                return update_result
+            else:
+                raise NotFoundException(f"course {course_id} not found")
+        existing_course = await self.course_collection.find_one({"_id": course_id})
+        if existing_course is not None:
             return existing_course
-        raise HTTPException(status_code=404, detail=f"Course {course_id} not found")
+        raise HTTPException(status_code=404, detail=f"course {id} not found")
 
     async def delete_course(self, course_id: str):
-        result = await self.course_collection.delete_one({"_id": ObjectId(course_id)})
-        if result.deleted_count == 1:
+        delete_result = await self.course_collection.delete_one(
+            {"_id": ObjectId(course_id)}
+        )
+
+        if delete_result.deleted_count == 1:
             return Response(status_code=status.HTTP_204_NO_CONTENT)
-        raise NotFoundException(f"Course {course_id} not found")
+
+        raise NotFoundException(f"course {course_id} not found")
 
     async def search_by_name(self, name: str):
-        cursor = self.course_collection.find({"name": name}).collation({"locale": "en", "strength": 2})
-        return await cursor.to_list(length=None)
+        cursor = self.course_collection.find(
+            {"name": name},
+        ).collation({"locale": "en", "strength": 2})
+        courses = await cursor.to_list(length=None)
+        return courses
 ```
 
 ---
 
-## 🧪 `utils/` — Helper Utilities
+### 🔹 `model/course_model.py` – MongoDB Course Schema
 
-### `id_validator.py`
+Defines both full and partial schemas for the course collection.
 
-Validates if a given string is a valid MongoDB ObjectId.
+```python
+from bson import ObjectId
+from pydantic import BaseModel, Field, ConfigDict, validator
+from typing import Literal, Optional
+from pydantic.functional_validators import BeforeValidator
+from typing_extensions import Annotated
+
+PyObjectId = Annotated[str, BeforeValidator(str)]
+
+class Owner(BaseModel):
+    id: int
+    name: str
+
+class CourseModel(BaseModel):
+    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    name: str
+    rating: float
+    owner: Owner
+    view: int
+    price: float
+    type: Literal["recommended", "popular", "new", "nothing"]
+
+    model_config = ConfigDict(
+        populate_by_name=True,
+        arbitrary_types_allowed=True,
+        json_schema_extra={
+            "example": {
+                "name": "Demo",
+                "rating": 4.07,
+                "owner": {"id": 45500, "name": "Demo Owner"},
+                "view": 800000,
+                "price": 25.89,
+                "type": "popular"
+            }
+        }
+    )
+
+    @validator('rating')
+    def round_rating(cls, v): return round(v, 2)
+
+    @validator('price')
+    def round_price(cls, v): return round(v, 2)
+
+class UpdateOwner(BaseModel):
+    id: Optional[int] = None
+    name: Optional[str] = None
+
+class UpdateCourseModel(BaseModel):
+    name: Optional[str] = None
+    rating: Optional[float] = None
+    owner: Optional[UpdateOwner] = None
+    view: Optional[int] = None
+    price: Optional[float] = None
+    type: Optional[Literal["recommended", "popular", "new", "nothing"]] = None
+
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        json_encoders={ObjectId: str},
+        json_schema_extra={
+            "example": {
+                "name": "Demo Updated",
+                "rating": 4.5,
+                "owner": {"id": 45500, "name": "Updated Owner"},
+                "view": 1000000,
+                "price": 19.99,
+                "type": "recommended"
+            }
+        }
+    )
+
+    @validator('rating')
+    def round_rating(cls, v): return round(v, 2) if v is not None else v
+
+    @validator('price')
+    def round_price(cls, v): return round(v, 2) if v is not None else v
+```
+
+---
+
+### 🔹 `utils/id_validator.py` – ObjectId Validation
 
 ```python
 from bson import ObjectId
@@ -167,11 +294,7 @@ def isvalidate_id(id: str):
 
 ---
 
-## ⚙️ `config/` — Application Configuration
-
-Handles MongoDB connection and environment loading.
-
-### `db_connector.py`
+### 🔹 `config/db_connector.py` – MongoDB Connection
 
 ```python
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -181,42 +304,38 @@ client = AsyncIOMotorClient(MONGODB_URI)
 db = client.get_database("summoners-school")
 ```
 
-Automatically creates the database and collection when accessed.
-
-### `env_config.py`
+### 🔹 `config/env_config.py` – Load Environment Variables
 
 ```python
 from starlette.config import Config
 
 try:
-    config = Config('.env')
+    config = Config(".env")
 except FileNotFoundError:
     config = Config()
 
 MONGODB_URI = config("MONGODB_URI", cast=str)
 ```
 
-Loads environment variables from a `.env` file.
-
 ---
 
-## ❗ `exceptions/` — Custom Exception Handling
-
-### `base_exceptions.py`
+### 🔹 `exceptions/base_exceptions.py` – Custom Exceptions
 
 ```python
 class NotFoundException(Exception):
     def __init__(self, detail: str, *args):
         super().__init__(*args)
-        self.detail: str = detail
+        self.detail = detail
 
 class BadRequest(Exception):
     def __init__(self, detail: str, *args):
         super().__init__(*args)
-        self.detail: str = detail
+        self.detail = detail
 ```
 
-### `handler.py`
+---
+
+### 🔹 `exceptions/handler.py` – Exception Handlers
 
 ```python
 from fastapi import FastAPI, Request
@@ -229,45 +348,8 @@ def register_exception(app: FastAPI):
         return JSONResponse(status_code=404, content={"detail": exc.detail})
 
     @app.exception_handler(BadRequest)
-    async def bad_req_handler(req: Request, exc: BadRequest):
+    async def bad_request(request: Request, exc: BadRequest):
         return JSONResponse(status_code=400, content={"detail": exc.detail})
 ```
-
-Registers custom exceptions with FastAPI for clean, consistent error responses.
-
----
-
-## 🧩 `model/` — MongoDB Document Models
-
-Defines the data schema used in MongoDB. Example model (not shown above) might look like:
-
-```python
-from pydantic import BaseModel, Field
-from typing import Optional
-from bson import ObjectId
-
-class CourseModel(BaseModel):
-    id: Optional[str] = Field(alias="_id", default=None)
-    name: str
-    description: str
-    price: float
-    rating: float
-    owner: dict
-```
-
----
-
-## ✅ Summary
-
-| Folder/File      | Purpose                                                  |
-| ---------------- | -------------------------------------------------------- |
-| `main.py`        | FastAPI app initialization                               |
-| `routes.py`      | API endpoints and routing                                |
-| `controllers.py` | Controller methods for handling requests                 |
-| `services.py`    | Business logic and MongoDB operations                    |
-| `models/`        | MongoDB data models (schemas)                            |
-| `config/`        | Environment and MongoDB configuration                    |
-| `utils/`         | Reusable utility functions (e.g., ID validation)         |
-| `exceptions/`    | Custom exceptions and FastAPI error handler registration |
 
 ---

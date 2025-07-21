@@ -6,7 +6,7 @@ from .config.db_connector import db
 from .model.course_model import CourseModel, UpdateCourseModel
 
 
-class CourseService:
+class Service:
     def __init__(self):
         self.course_collection = db.get_collection("course")
 
