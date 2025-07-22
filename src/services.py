@@ -4,126 +4,111 @@ from pymongo import ReturnDocument
 from .exceptions.base_exceptions import NotFoundException
 from .config.db_connector import db
 from .model.course_model import CourseModel, UpdateCourseModel
+from .model.guide_model import GuideModel, UpdateGuideModel  # Adjust path as needed
 
 
 class Service:
     def __init__(self):
-        """Initializes the Service with a reference to the course MongoDB collection."""
+        """Initializes the Service with references to the course and guide MongoDB collections."""
         self.course_collection = db.get_collection("course")
+        self.guide_collection = db.get_collection("guide")
+
+    # ---------- COURSE OPERATIONS ----------
 
     async def create_course(self, payload: CourseModel):
-        """
-        Creates a new course document in the MongoDB collection.
-
-        Args:
-            payload (CourseModel): The course data to insert.
-
-        Returns:
-            dict: The created course document from the database.
-        """
         new_course = await self.course_collection.insert_one(
             payload.model_dump(by_alias=True, exclude=["id"])
         )
-        created_course = await self.course_collection.find_one(
-            {"_id": new_course.inserted_id}
-        )
-        return created_course
+        return await self.course_collection.find_one({"_id": new_course.inserted_id})
 
     async def get_courses(self):
-        """
-        Retrieves all course documents from the collection.
-
-        Returns:
-            list: A list of all courses stored in the database.
-        """
-        courses = await self.course_collection.find().to_list(length=None)
-        return courses
+        return await self.course_collection.find().to_list(length=None)
 
     async def get_course(self, course_id: str):
-        """
-        Retrieves a single course document by its ID.
-
-        Args:
-            course_id (str): The ObjectId of the course.
-
-        Raises:
-            NotFoundException: If the course is not found.
-
-        Returns:
-            dict: The course document from the database.
-        """
         course = await self.course_collection.find_one({"_id": ObjectId(course_id)})
         if not course:
             raise NotFoundException("Course Not Found")
         return course
 
     async def update_course(self, course_id: str, payload: UpdateCourseModel):
-        """
-        Updates a course document with the provided fields.
-
-        Args:
-            course_id (str): The ObjectId of the course to update.
-            payload (UpdateCourseModel): The fields to update.
-
-        Raises:
-            NotFoundException: If the course to update is not found.
-            HTTPException: If course ID is invalid or update fails.
-
-        Returns:
-            dict: The updated course document.
-        """
-        course = {
+        update_data = {
             k: v for k, v in payload.model_dump(by_alias=True).items() if v is not None
         }
-        if len(course) >= 1:
-            update_result = await self.course_collection.find_one_and_update(
+        if update_data:
+            updated = await self.course_collection.find_one_and_update(
                 {"_id": ObjectId(course_id)},
-                {"$set": course},
+                {"$set": update_data},
                 return_document=ReturnDocument.AFTER,
             )
-            if update_result is not None:
-                return update_result
-            else:
-                raise NotFoundException(f"course {course_id} not found")
-        existing_course = await self.course_collection.find_one({"_id": course_id})
-        if existing_course is not None:
-            return existing_course
-        raise HTTPException(status_code=404, detail=f"course {course_id} not found")
+            if updated:
+                return updated
+            raise NotFoundException(f"Course {course_id} not found")
+        existing = await self.course_collection.find_one({"_id": ObjectId(course_id)})
+        if existing:
+            return existing
+        raise HTTPException(status_code=404, detail=f"Course {course_id} not found")
 
     async def delete_course(self, course_id: str):
-        """
-        Deletes a course document by its ID.
-
-        Args:
-            course_id (str): The ObjectId of the course to delete.
-
-        Raises:
-            NotFoundException: If no course is found to delete.
-
-        Returns:
-            Response: HTTP 204 No Content on success.
-        """
-        delete_result = await self.course_collection.delete_one(
-            {"_id": ObjectId(course_id)}
-        )
-
-        if delete_result.deleted_count == 1:
+        result = await self.course_collection.delete_one({"_id": ObjectId(course_id)})
+        if result.deleted_count == 1:
             return Response(status_code=status.HTTP_204_NO_CONTENT)
+        raise NotFoundException(f"Course {course_id} not found")
 
-        raise NotFoundException(f"course {course_id} not found")
-
-    async def search_by_name(self, name: str):
+    async def search_course_by_name(self, name: str):
         """
-        Searches for courses by exact name match (case-insensitive).
-
-        Args:
-            name (str): The name of the course to search for.
-
-        Returns:
-            list: A list of matching course documents.
+        Search courses by name using partial, case-insensitive matching.
         """
         cursor = self.course_collection.find(
-            {"name": name},
-        ).collation({"locale": "en", "strength": 2})
-        courses = await cursor.to_list(length=None)
-        return courses
+            {"name": {"$regex": name, "$options": "i"}}
+        )
+        return await cursor.to_list(length=None)
+
+    # ---------- GUIDE OPERATIONS ----------
+
+    async def create_guide(self, payload: GuideModel):
+        new_guide = await self.guide_collection.insert_one(
+            payload.model_dump(by_alias=True, exclude=["id"])
+        )
+        return await self.guide_collection.find_one({"_id": new_guide.inserted_id})
+
+    async def get_guides(self):
+        return await self.guide_collection.find().to_list(length=None)
+
+    async def get_guide(self, guide_id: str):
+        guide = await self.guide_collection.find_one({"_id": ObjectId(guide_id)})
+        if not guide:
+            raise NotFoundException("Guide Not Found")
+        return guide
+
+    async def update_guide(self, guide_id: str, payload: UpdateGuideModel):
+        update_data = {
+            k: v for k, v in payload.model_dump(by_alias=True).items() if v is not None
+        }
+        if update_data:
+            updated = await self.guide_collection.find_one_and_update(
+                {"_id": ObjectId(guide_id)},
+                {"$set": update_data},
+                return_document=ReturnDocument.AFTER,
+            )
+            if updated:
+                return updated
+            raise NotFoundException(f"Guide {guide_id} not found")
+        existing = await self.guide_collection.find_one({"_id": ObjectId(guide_id)})
+        if existing:
+            return existing
+        raise HTTPException(status_code=404, detail=f"Guide {guide_id} not found")
+
+    async def delete_guide(self, guide_id: str):
+        result = await self.guide_collection.delete_one({"_id": ObjectId(guide_id)})
+        if result.deleted_count == 1:
+            return Response(status_code=status.HTTP_204_NO_CONTENT)
+        raise NotFoundException(f"Guide {guide_id} not found")
+
+    async def search_guide_by_name(self, name: str):
+        """
+        Search guides by name using partial, case-insensitive matching.
+        """
+        cursor = self.guide_collection.find(
+            {"name": {"$regex": name, "$options": "i"}}
+        )
+        return await cursor.to_list(length=None)

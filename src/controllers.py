@@ -1,99 +1,65 @@
-from bson import ObjectId
+from src.model.course_model import CourseModel, UpdateCourseModel
 from .exceptions.base_exceptions import BadRequest
 from .utils.id_validator import isvalidate_id
-from .model.course_model import CourseModel, UpdateCourseModel
+from .model.guide_model import GuideModel, UpdateGuideModel
 from .services import Service
 
 
 class Controller:
+    # --------------------- COURSE METHODS ---------------------
+
     @staticmethod
     async def create_course(course: CourseModel):
-        """
-        Create a new course in the database.
-
-        Args:
-            course (CourseModel): The course data to be inserted.
-
-        Returns:
-            dict: The created course document.
-        """
-        result = await Service().create_course(course)
-        return result
+        return await Service().create_course(course)
 
     @staticmethod
     async def get_courses():
-        """
-        Retrieve all courses from the database.
-
-        Returns:
-            list: A list of all course documents.
-        """
-        result = await Service().get_courses()
-        return result
+        return await Service().get_courses()
 
     @staticmethod
     async def get_course(course_id: str):
-        """
-        Retrieve a specific course by its ID.
-
-        Args:
-            course_id (str): The unique ID of the course.
-
-        Raises:
-            BadRequest: If the course ID is invalid.
-
-        Returns:
-            dict: The course document if found.
-        """
         isvalidate_id(course_id)
-        result = await Service().get_course(course_id)
-        return result
+        return await Service().get_course(course_id)
 
     @staticmethod
     async def update_course(course_id: str, payload: UpdateCourseModel):
-        """
-        Update a course's details based on the given payload.
-
-        Args:
-            course_id (str): The ID of the course to update.
-            payload (UpdateCourseModel): Fields to update.
-
-        Raises:
-            BadRequest: If the course ID is invalid.
-
-        Returns:
-            dict: The updated course document.
-        """
         isvalidate_id(course_id)
-        result = await Service().update_course(course_id, payload)
-        return result
+        return await Service().update_course(course_id, payload)
 
     @staticmethod
     async def delete_course(course_id: str):
-        """
-        Delete a course from the database using its ID.
-
-        Args:
-            course_id (str): The ID of the course to delete.
-
-        Raises:
-            BadRequest: If the course ID is invalid.
-
-        Returns:
-            Response: HTTP 204 No Content on successful deletion.
-        """
         isvalidate_id(course_id)
         return await Service().delete_course(course_id)
 
     @staticmethod
     async def get_course_by_name(name: str):
-        """
-        Search for courses that match the given name (case-insensitive).
+        return await Service().search_course_by_name(name)
 
-        Args:
-            name (str): Name of the course to search.
+    # --------------------- GUIDE METHODS ---------------------
 
-        Returns:
-            list: List of matched course documents.
-        """
-        return await Service().search_by_name(name)
+    @staticmethod
+    async def create_guide(guide: GuideModel):
+        return await Service().create_guide(guide)
+
+    @staticmethod
+    async def get_guides():
+        return await Service().get_guides()
+
+    @staticmethod
+    async def get_guide(guide_id: str):
+        isvalidate_id(guide_id)
+        return await Service().get_guide(guide_id)
+
+    @staticmethod
+    async def update_guide(guide_id: str, payload: UpdateGuideModel):
+        isvalidate_id(guide_id)
+        return await Service().update_guide(guide_id, payload)
+
+    @staticmethod
+    async def delete_guide(guide_id: str):
+        isvalidate_id(guide_id)
+        return await Service().delete_guide(guide_id)
+
+    @staticmethod
+    async def get_guide_by_name(name: str):
+        return await Service().search_guide_by_name(name)
