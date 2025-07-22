@@ -8,9 +8,19 @@ from .model.course_model import CourseModel, UpdateCourseModel
 
 class Service:
     def __init__(self):
+        """Initializes the Service with a reference to the course MongoDB collection."""
         self.course_collection = db.get_collection("course")
 
     async def create_course(self, payload: CourseModel):
+        """
+        Creates a new course document in the MongoDB collection.
+
+        Args:
+            payload (CourseModel): The course data to insert.
+
+        Returns:
+            dict: The created course document from the database.
+        """
         new_course = await self.course_collection.insert_one(
             payload.model_dump(by_alias=True, exclude=["id"])
         )
@@ -20,16 +30,48 @@ class Service:
         return created_course
 
     async def get_courses(self):
+        """
+        Retrieves all course documents from the collection.
+
+        Returns:
+            list: A list of all courses stored in the database.
+        """
         courses = await self.course_collection.find().to_list(length=None)
         return courses
 
     async def get_course(self, course_id: str):
+        """
+        Retrieves a single course document by its ID.
+
+        Args:
+            course_id (str): The ObjectId of the course.
+
+        Raises:
+            NotFoundException: If the course is not found.
+
+        Returns:
+            dict: The course document from the database.
+        """
         course = await self.course_collection.find_one({"_id": ObjectId(course_id)})
         if not course:
             raise NotFoundException("Course Not Found")
         return course
 
     async def update_course(self, course_id: str, payload: UpdateCourseModel):
+        """
+        Updates a course document with the provided fields.
+
+        Args:
+            course_id (str): The ObjectId of the course to update.
+            payload (UpdateCourseModel): The fields to update.
+
+        Raises:
+            NotFoundException: If the course to update is not found.
+            HTTPException: If course ID is invalid or update fails.
+
+        Returns:
+            dict: The updated course document.
+        """
         course = {
             k: v for k, v in payload.model_dump(by_alias=True).items() if v is not None
         }
@@ -46,9 +88,21 @@ class Service:
         existing_course = await self.course_collection.find_one({"_id": course_id})
         if existing_course is not None:
             return existing_course
-        raise HTTPException(status_code=404, detail=f"course {id} not found")
+        raise HTTPException(status_code=404, detail=f"course {course_id} not found")
 
     async def delete_course(self, course_id: str):
+        """
+        Deletes a course document by its ID.
+
+        Args:
+            course_id (str): The ObjectId of the course to delete.
+
+        Raises:
+            NotFoundException: If no course is found to delete.
+
+        Returns:
+            Response: HTTP 204 No Content on success.
+        """
         delete_result = await self.course_collection.delete_one(
             {"_id": ObjectId(course_id)}
         )
@@ -59,9 +113,17 @@ class Service:
         raise NotFoundException(f"course {course_id} not found")
 
     async def search_by_name(self, name: str):
+        """
+        Searches for courses by exact name match (case-insensitive).
+
+        Args:
+            name (str): The name of the course to search for.
+
+        Returns:
+            list: A list of matching course documents.
+        """
         cursor = self.course_collection.find(
             {"name": name},
         ).collation({"locale": "en", "strength": 2})
         courses = await cursor.to_list(length=None)
         return courses
-

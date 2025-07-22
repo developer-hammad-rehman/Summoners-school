@@ -1,8 +1,6 @@
 from fastapi import FastAPI
-
 from src.exceptions.handler import register_exception
 from .routes import router
-
 
 
 
